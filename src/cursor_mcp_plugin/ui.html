@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Cursor MCP MasterGo Plugin</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Helvetica, Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        color: #e0e0e0;
+        background-color: #1e1e1e;
+      }
+      .container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+      h1 {
+        font-size: 16px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        color: #ffffff;
+      }
+      h2 {
+        font-size: 14px;
+        font-weight: 600;
+        margin-top: 20px;
+        margin-bottom: 8px;
+        color: #ffffff;
+      }
+      button {
+        background-color: #18a0fb;
+        border: none;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin-top: 8px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: background-color 0.2s;
+      }
+      button:hover {
+        background-color: #0d8ee0;
+      }
+      button.secondary {
+        background-color: #3d3d3d;
+        color: #e0e0e0;
+      }
+      button.secondary:hover {
+        background-color: #4d4d4d;
+      }
+      button:disabled {
+        background-color: #333333;
+        color: #666666;
+        cursor: not-allowed;
+      }
+      input {
+        border: 1px solid #444444;
+        border-radius: 4px;
+        padding: 8px;
+        margin-bottom: 12px;
+        font-size: 14px;
+        width: 100%;
+        box-sizing: border-box;
+        background-color: #2d2d2d;
+        color: #e0e0e0;
+      }
+      label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 12px;
+        font-weight: 500;
+        color: #cccccc;
+      }
+      .status {
+        margin-top: 16px;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 14px;
+      }
+      .status.connected {
+        background-color: #1a472a;
+        color: #4ade80;
+      }
+      .status.disconnected {
+        background-color: #471a1a;
+        color: #ff9999;
+      }
+      .status.info {
+        background-color: #1a3147;
+        color: #66b3ff;
+      }
+      .section {
+        margin-bottom: 24px;
+      }
+      .hidden {
+        display: none;
+      }
+      .logo {
+        width: 50px;
+        height: 50px;
+      }
+      .header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 16px;
+      }
+      .header-text {
+        margin-left: 12px;
+      }
+      .header-text h1 {
+        margin: 0;
+        font-size: 16px;
+      }
+      .header-text p {
+        margin: 4px 0 0 0;
+        font-size: 12px;
+        color: #999999;
+      }
+      .tabs {
+        display: flex;
+        border-bottom: 1px solid #444444;
+        margin-bottom: 16px;
+      }
+      .tab {
+        padding: 8px 16px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        color: #999999;
+      }
+      .tab.active {
+        border-bottom: 2px solid #18a0fb;
+        color: #18a0fb;
+      }
+      .tab-content {
+        display: none;
+      }
+      .tab-content.active {
+        display: block;
+      }
+      .link {
+        color: #18a0fb;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      .link:hover {
+        text-decoration: underline;
+      }
+      .header-logo {
+        padding: 16px;
+        border-radius: 16px;
+        background-color: #333;
+      }
+      .header-logo-image {
+        width: 24px;
+        height: 24px;
+        object-fit: contain;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="header-logo">
+          <img
+            class="header-logo-image"
+            src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADwAAAA8CAMAAAANIilAAAAABGdBTUEAALGPC/xhBQAAAAFzUkdCAK7OHOkAAAAJcEhZcwAAEJwAABCcASbNOjQAAAB1UExURUdwTP////////////////39/f////////////////////////////7+/v////////////39/f////////////////////////////////////////////////////39/fn5+ejo6P///+rq6uXl5f////Ly8gf4a04AAAAkdFJOUwAOdkZCfz04zIgbT0pkIagnm7C9b6C2LWqSxBMyB11W2Ovsy3D12ZYAAALtSURBVEjHndcJt6ogEADgXNAUcWlxSQVN3/3/P/EBAgJpWdM9p5ue78xANE2n05vIUduffgvn1oA0bX+hvRc1DYjTPHe+tiGIoqhx4zTNq/y72lMURQtmqasuPc4dAmgwfWuZrqquiw8uNnC5BRJT3YXhIZ7Xris0oLjlmOrArz7VHpOb6wpNee0ITVMHvvd25/qgvtFwla8dpxV7xnTi7dbed7iuTY16lZoV7iXQb3cqRgjVgoviKTZSUw2719pbD2OEVu5yjnqeOpZ75lMMobVzfUcwC6lrofGJpdb3jGtj6TkkNKRWtXMsU+ciNdfQUwe+zZ7/vo1CYYgv39G/kShMS6mHL+g8F96K2Uqi52E6j3DFnsc4uR/hMwugYd9bOLoeSTvPE1yx4/sLh9B9fKbziHVM3z/G+dKb5wdKdysxsNCc4+2l/yk7EnrOVhwGBt9auqJ0t9gR13C4cl77bdil88SPuK9jxrXksHjab48Mwo+4ha3aSbZJ52JpC4GFbY7OdsVst4Lls/mKZe1y6fXTonS3RFsIN7C5dAJsO+WiI21jbd8xesFEtoUdLLjH+qGNJ9WRuj3MOOQNycaV6khvsLc0MxsD2Uq7bhcHuBZh4rFdujjT1c6GkaXtszCx3sW3MRRfNjwiI7EjGjGfFjZwUgM9CuNggqRVXz+vOGDTBOCP5UnHE73ghjK1jYNlEIma9UnHBb/qdkvq1MSQjk4yCvGk4UneQylLbWAIio3I1t26q4sNTuM01tqQe9+My5pYv9wk8Ypv92w7JpXYulGoD8aJ3C/bUUp8tW5EuTa2oXI7ZGLzahZYE0l03QqZWI8Lfh1lw+zxEoNIrF8Dm/NQT8rzgz+WP/oQmL6Ud4pud/4DZzMWPKjXZfJufOyiVzzKV4/609yelDaWiZsDc6+DSwOLxNqxeD/6Ah3zf674+Kyf3xUeDi3WDFIKzCpOv/5phB4MD+cs/OWXVdych/GBf/xJd4pL9+1i/wOElMO5v/co4wAAAABJRU5ErkJggg=="
+          />
+        </div>
+        <div class="header-text">
+          <h1>Cursor Talk To MasterGo Plugin</h1>
+          <p>Connect MasterGo to Cursor AI using MCP</p>
+        </div>
+      </div>
+      
+      <div class="tabs">
+        <div id="tab-connection" class="tab active">Connection</div>
+        <div id="tab-about" class="tab">About</div>
+      </div>
+      
+      <div id="content-connection" class="tab-content active">
+        <div class="section">
+          <label for="port">WebSocket Server Port</label>
+          <div style="display: flex; gap: 8px">
+            <input
+              type="number"
+              id="port"
+              placeholder="3055"
+              value="3055"
+              min="1024"
+              max="65535"
+            />
+            <button id="btn-connect" class="primary">Connect</button>
+          </div>
+        </div>
+
+        <div id="connection-status" class="status disconnected">
+          Not connected to Cursor MCP server
+        </div>
+
+        <div class="section">
+          <button id="btn-disconnect" class="secondary" disabled>
+            Disconnect
+          </button>
+        </div>
+      </div>
+      
+      <div id="content-about" class="tab-content">
+        <div class="section">
+          <h2>About Cursor Talk To MasterGo Plugin</h2>
+          <p>
+            This plugin allows Cursor AI to communicate with MasterGo, enabling
+            AI-assisted design operations. created by
+            <a
+              class="link"
+              onclick="window.open(`https://github.com/sonnylazuardi`, '_blank')"
+              >Sonny</a
+            >
+          </p>
+          <p>Version: 1.0.0</p>
+
+          <h2>How to Use</h2>
+          <ol>
+            <li>Make sure the MCP server is running in Cursor</li>
+            <li>Connect to the server using the port number (default: 3055)</li>
+            <li>Once connected, you can interact with MasterGo through Cursor</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // WebSocket connection state
+      const state = {
+        connected: false,
+        socket: null,
+        serverPort: 3055,
+        pendingRequests: new Map(),
+        channel: null,
+      };
+      
+      // UI Elements
+      const portInput = document.getElementById("port");
+      const connectButton = document.getElementById("btn-connect");
+      const disconnectButton = document.getElementById("btn-disconnect");
+      const connectionStatus = document.getElementById("connection-status");
+
+      // Tabs
+      const tabs = document.querySelectorAll(".tab");
+      const tabContents = document.querySelectorAll(".tab-content");
+
+      // Initialize UI
+      function updateConnectionStatus(isConnected, message) {
+        state.connected = isConnected;
+        connectionStatus.innerHTML =
+          message ||
+          (isConnected
+            ? "Connected to Cursor MCP server"
+            : "Not connected to Cursor MCP server");
+        connectionStatus.className = `status ${
+          isConnected ? "connected" : "disconnected"
+        }`;
+
+        connectButton.disabled = isConnected;
+        disconnectButton.disabled = !isConnected;
+        portInput.disabled = isConnected;
+      }
+
+      // Connect to WebSocket server
+      async function connectToServer(port) {
+        try {
+          if (state.connected && state.socket) {
+            updateConnectionStatus(true, "已连接到服务器");
+            return;
+          }
+
+          state.serverPort = port;
+          updateConnectionStatus(false, "正在连接到服务器...");
+          connectionStatus.className = "status info";
+          
+          // 创建WebSocket连接
+          console.log("创建WebSocket连接到:", `ws://localhost:${port}`);
+          state.socket = new WebSocket(`ws://localhost:${port}`);
+          
+          // 连接超时处理
+          const connectionTimeout = setTimeout(() => {
+            if (!state.connected) {
+              console.error("WebSocket连接超时");
+              updateConnectionStatus(false, "连接超时，请检查服务器是否运行");
+              state.socket.close();
+            }
+          }, 10000); // 10秒超时
+
+          state.socket.onopen = () => {
+            console.log("WebSocket已连接");
+            clearTimeout(connectionTimeout);
+            
+            // 生成随机频道名
+            const channelName = generateChannelName();
+            console.log("加入频道:", channelName);
+            state.channel = channelName;
+            
+            // 使用与App.tsx相同格式加入频道
+            state.socket.send(
+              JSON.stringify({
+                type: "join",
+                channel: channelName.trim(),
+              })
+            );
+          };
+
+          state.socket.onmessage = (event) => {
+            try {
+              console.log("收到WebSocket消息");
+              const data = JSON.parse(event.data);
+              console.log("解析后的消息:", data);
+
+              if (data.type === "system") {
+                // 成功加入频道
+                if (data.message && data.message.result) {
+                  state.connected = true;
+                  const channelName = data.channel;
+                  updateConnectionStatus(
+                    true,
+                    `已连接到端口 ${port} 的服务器，频道: <strong>${channelName}</strong>`
+                  );
+                  
+                  // 通知插件代码
+                  parent.postMessage(
+                    {
+                      pluginMessage: {
+                        type: "notify",
+                        message: `已连接到Cursor MCP服务器，端口: ${port}，频道: ${channelName}`,
+                      },
+                    },
+                    "*"
+                  );
+                }
+              } else if (data.type === "error") {
+                console.error("WebSocket错误:", data.message);
+                updateConnectionStatus(false, `错误: ${data.message}`);
+                state.socket.close();
+              }
+
+              handleSocketMessage(data);
+            } catch (error) {
+              console.error("解析消息错误:", error);
+            }
+          };
+
+          state.socket.onclose = (event) => {
+            console.log("WebSocket关闭:", event);
+            state.connected = false;
+            state.socket = null;
+            updateConnectionStatus(false, `断开连接: ${event.reason || "未知原因"}`);
+            
+            // 可选: 自动重连
+            // setTimeout(() => connectToServer(port), 3000);
+          };
+
+          state.socket.onerror = (error) => {
+            console.error("WebSocket错误:", error);
+            updateConnectionStatus(false, "连接错误，请检查服务器是否运行");
+            state.connected = false;
+            state.socket = null;
+          };
+        } catch (error) {
+          console.error("连接错误:", error);
+          updateConnectionStatus(
+            false,
+            `连接错误: ${error.message || "未知错误"}`
+          );
+        }
+      }
+      
+      // Disconnect from websocket server
+      function disconnectFromServer() {
+        if (state.socket) {
+          state.socket.close();
+          state.socket = null;
+          state.connected = false;
+          updateConnectionStatus(false, "Disconnected from server");
+        }
+      }
+
+      // Handle messages from the WebSocket
+      async function handleSocketMessage(payload) {
+        try {
+          console.log("处理WebSocket消息:", payload);
+          
+          // 确保payload有效
+          if (!payload) {
+            console.error("收到无效的空消息");
+            return;
+          }
+
+          // 记录完整的payload以便调试
+          console.log("完整的payload内容:", JSON.stringify(payload));
+          
+          // 处理系统消息
+          if (payload.type === 'system') {
+            console.log("收到系统消息:", payload.message);
+            return;
+          }
+          
+          // 处理错误消息
+          if (payload.type === 'error') {
+            console.error("收到错误消息:", payload.message || payload.error);
+            return;
+          }
+          
+          // 处理广播消息 - 这是从客户端发送给插件的主要消息类型
+          if (payload.type === 'broadcast') {
+            console.log("收到广播消息:", payload.message);
+            
+            // 确保有消息内容
+            if (!payload.message) {
+              console.error("广播消息格式错误，缺少message字段:", payload);
+              return;
+            }
+            
+            // 提取消息数据
+            const data = payload.message;
+            console.log("提取的消息数据:", data);
+            
+            // 检查是否有command字段
+            if (data.command) {
+              console.log(`执行新命令:${data.command}，参数:`, data.params || {});
+              
+              try {
+                // 完全按照官方文档示例发送消息
+                // 直接传递纯粹的消息对象，不需要任何包装
+                console.log("使用纯粹官方格式发送命令:", data.command);
+                
+                // 创建简单消息对象
+                const simpleMsg = {
+                  command: data.command
+                };
+                
+                // 添加参数
+                if (data.params) {
+                  // 扩展参数到消息对象
+                  Object.assign(simpleMsg, data.params);
+                }
+                
+                console.log("发送给MasterGo的纯消息:", simpleMsg);
+                
+                // 完全按官方示例格式发送
+                parent.postMessage(simpleMsg, '*');
+                
+                console.log(`命令${data.command}已按纯官方格式发送`);
+              } catch (error) {
+                console.error(`发送命令${data.command}到插件失败:`, error);
+                
+                // 发送错误响应回WebSocket
+                if (data.id) {
+                  sendErrorResponse(
+                    data.id,
+                    `执行命令${data.command}失败: ${error.message || "未知错误"}`
+                  );
+                }
+              }
+            } else {
+              console.warn("广播消息没有command字段:", data);
+            }
+            return;
+          }
+          
+          // 响应到先前的请求
+          if (payload.message && payload.message.id && state.pendingRequests.has(payload.message.id)) {
+            console.log(`处理请求ID:${payload.message.id}的响应`);
+            const { resolve, reject } = state.pendingRequests.get(payload.message.id);
+            
+            if (payload.message.error) {
+              console.error(`请求ID:${payload.message.id}返回错误:`, payload.message.error);
+              reject(new Error(payload.message.error));
+            } else {
+              console.log(`请求ID:${payload.message.id}成功返回结果`);
+              resolve(payload.message.result);
+            }
+            
+            // 无论成功或失败都删除请求
+            state.pendingRequests.delete(payload.message.id);
+            return;
+          }
+
+          // 如果到这里还没有处理，则记录未知消息类型
+          console.warn("未处理的消息类型:", payload.type, "消息内容:", payload);
+        } catch (error) {
+          console.error("处理WebSocket消息时出错:", error);
+        }
+      }
+
+      // Send a command to the WebSocket server
+      async function sendCommand(command, params) {
+        return new Promise((resolve, reject) => {
+          if (!state.connected || !state.socket) {
+            reject(new Error("未连接到服务器"));
+            return;
+          }
+
+          const id = generateId();
+          state.pendingRequests.set(id, { resolve, reject });
+
+          try {
+            // 日志请求详情
+            console.log(`发送命令 ${command}，ID: ${id}，参数:`, params);
+            
+            // 发送请求
+            state.socket.send(
+              JSON.stringify({
+                id,
+                type: "message",
+                channel: state.channel,
+                message: {
+                  id,
+                  command,
+                  params,
+                },
+              })
+            );
+
+            // 增加超时时间到60秒
+            const timeoutId = setTimeout(() => {
+              if (state.pendingRequests.has(id)) {
+                console.warn(`请求超时 ${command}，ID: ${id}`);
+                state.pendingRequests.delete(id);
+                
+                // 尝试检查连接是否仍然活跃
+                if (state.socket && state.socket.readyState === WebSocket.OPEN) {
+                  console.log("连接仍然活跃，可能请求仍在处理中");
+                  // 继续请求正在处理，返回可能成功的信息
+                  resolve({
+                    success: true,
+                    warning: "请求超时，但命令可能已执行成功",
+                    commandId: id,
+                    commandSent: true
+                  });
+                } else {
+                  reject(new Error("请求超时，连接可能已断开"));
+                }
+              }
+            }, 60000); // 60秒超时
+
+            // 添加清理函数到promise
+            const cleanup = () => {
+              clearTimeout(timeoutId);
+              state.pendingRequests.delete(id);
+            };
+
+            const originalResolve = resolve;
+            resolve = (value) => {
+              cleanup();
+              originalResolve(value);
+            };
+
+            const originalReject = reject;
+            reject = (reason) => {
+              cleanup();
+              originalReject(reason);
+            };
+          } catch (error) {
+            console.error("发送命令时发生错误:", error);
+            state.pendingRequests.delete(id);
+            reject(error);
+          }
+        });
+      }
+
+      // Send success response back to WebSocket
+      function sendSuccessResponse(id, result) {
+        if (!state.connected || !state.socket) {
+          console.error("Cannot send response: socket not connected");
+          return;
+        }
+        
+        state.socket.send(
+          JSON.stringify({
+            id,
+            type: "message",
+            channel: state.channel,
+            message: {
+              id,
+              result,
+            },
+          })
+        );
+      }
+
+      // Send error response back to WebSocket
+      function sendErrorResponse(id, errorMessage) {
+        if (!state.connected || !state.socket) {
+          console.error("Cannot send error response: socket not connected");
+          return;
+        }
+
+        state.socket.send(
+          JSON.stringify({
+            id,
+            error: errorMessage,
+          })
+        );
+      }
+      
+      // Helper to generate unique IDs
+      function generateId() {
+        return (
+          Date.now().toString(36) + Math.random().toString(36).substr(2, 5)
+        );
+      }
+
+      // Add this function after the generateId() function
+      function generateChannelName() {
+        const characters = "abcdefghijklmnopqrstuvwxyz0123456789";
+        let result = "";
+        for (let i = 0; i < 8; i++) {
+          result += characters.charAt(
+            Math.floor(Math.random() * characters.length)
+          );
+        }
+        return result;
+      }
+
+      // Tab switching
+      tabs.forEach((tab) => {
+        tab.addEventListener("click", () => {
+          tabs.forEach((t) => t.classList.remove("active"));
+          tabContents.forEach((c) => c.classList.remove("active"));
+
+          tab.classList.add("active");
+          const contentId = "content-" + tab.id.split("-")[1];
+          document.getElementById(contentId).classList.add("active");
+        });
+      });
+
+      // Connect to server
+      connectButton.addEventListener("click", () => {
+        const port = parseInt(portInput.value, 10) || 3055;
+        updateConnectionStatus(false, "Connecting...");
+        connectionStatus.className = "status info";
+        connectToServer(port);
+      });
+      
+      // Disconnect from server
+      disconnectButton.addEventListener("click", () => {
+        updateConnectionStatus(false, "Disconnecting...");
+        connectionStatus.className = "status info";
+        disconnectFromServer();
+      });
+      
+      // Listen for messages from the plugin code
+      window.onmessage = (event) => {
+        const message = event.data.pluginMessage;
+        if (!message) return;
+
+        switch (message.type) {
+          case "connection-status":
+            updateConnectionStatus(message.connected, message.message);
+            break;
+          case "auto-connect":
+            connectButton.click();
+            break;
+          case "auto-disconnect":
+            disconnectButton.click();
+            break;
+          case "command-result":
+            // Forward the result from plugin code back to WebSocket
+            sendSuccessResponse(message.id, message.result);
+            break;
+          case "command-error":
+            // Forward the error from plugin code back to WebSocket
+            sendErrorResponse(message.id, message.error);
+            break;
+        }
+      };
+    </script>
+  </body>
+</html>

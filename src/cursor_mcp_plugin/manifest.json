@@ -1,0 +1,37 @@
+{
+  "name": "Cursor MCP MasterGo Plugin",
+  "id": "cursor-mcp-mastergo-plugin",
+  "version": "1.0.0",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "editorType": [
+    "mastergo"
+  ],
+  "permissions": [
+    "currentuser",
+    "activeuser",
+    "nodeaccess",
+    "clipboard",
+    "fontaccess",
+    "fileaccess"
+  ],
+  "menu": [
+    {
+      "name": "启动 MCP 连接",
+      "command": "start-mcp"
+    }
+  ],
+  "networkAccess": {
+    "allowedDomains": [
+      "https://google.com"
+    ],
+    "devAllowedDomains": [
+      "http://localhost:3055",
+      "ws://localhost:3055"
+    ]
+  },
+  "documentAccess": "dynamic-page",
+  "enableProposedApi": true,
+  "enablePrivatePluginApi": true
+}
