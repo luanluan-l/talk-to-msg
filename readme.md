@@ -1,4 +1,8 @@
-# CCursor Talk To MSG Plugin MCP
+# Special Notice
+
+This project is modified based on [cursor-talk-to-figma-mcp](https://github.com/sonnylazuardi/cursor-talk-to-figma-mcp), originally created by Sonny Lazuardi.
+
+# Cursor Talk To MSG Plugin MCP
 
 This project implements a Model Context Protocol (MCP) integration between Cursor AI and Mastergo, allowing Cursor to communicate with Master go for reading designs and modifying them programmatically.
 
