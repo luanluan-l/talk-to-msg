@@ -26,24 +26,49 @@
       h2 {
         font-size: 14px;
         font-weight: 600;
-        margin-top: 20px;
+        margin-top: 0px;
         margin-bottom: 8px;
         color: #ffffff;
       }
+      #content-about h2 {
+        margin-top: 16px;
+      }
+      #content-about h2:first-child {
+        margin-top: 0;
+      }
+      #content-about .section {
+        margin-top: 16px;
+        margin-bottom: 8px;
+      }
+      #content-about p, #content-about ul {
+        font-size: 12px;
+        line-height: 1.5;
+        margin: 0;
+      }
+      #content-about ul {
+        list-style-type: disc;
+        padding-left: 20px;
+      }
+      #content-about ul li {
+        margin-bottom: 4px;
+      }
+      #content-about h2:not(:first-child) {
+        margin-top: 16px;
+      }
       button {
-        background-color: #18a0fb;
+        background-color: #165DFF;
         border: none;
         color: white;
         padding: 8px 12px;
         border-radius: 6px;
-        margin-top: 8px;
-        margin-bottom: 8px;
         cursor: pointer;
         font-size: 14px;
         transition: background-color 0.2s;
+        height: 40px;
+        box-sizing: border-box;
       }
       button:hover {
-        background-color: #0d8ee0;
+        background-color: #4080FF;
       }
       button.secondary {
         background-color: #3d3d3d;
@@ -61,13 +86,24 @@
         border: 1px solid #444444;
         border-radius: 4px;
         padding: 8px;
-        margin-bottom: 12px;
         font-size: 14px;
         width: 100%;
         box-sizing: border-box;
         background-color: #2d2d2d;
         color: #e0e0e0;
       }
+      
+      /* 隐藏数字输入框的上下箭头 */
+      input[type="number"]::-webkit-inner-spin-button,
+      input[type="number"]::-webkit-outer-spin-button {
+        -webkit-appearance: none;
+        margin: 0;
+      }
+      
+      input[type="number"] {
+        -moz-appearance: textfield;
+      }
+      
       label {
         display: block;
         margin-bottom: 4px;
@@ -76,7 +112,8 @@
         color: #cccccc;
       }
       .status {
-        margin-top: 16px;
+        margin-top: 8px;
+        margin-bottom: 8px;
         padding: 12px;
         border-radius: 6px;
         font-size: 14px;
@@ -94,7 +131,7 @@
         color: #66b3ff;
       }
       .section {
-        margin-bottom: 24px;
+        margin-top: 16px;
       }
       .hidden {
         display: none;
@@ -123,7 +160,7 @@
       .tabs {
         display: flex;
         border-bottom: 1px solid #444444;
-        margin-bottom: 16px;
+        margin-bottom: 0;
       }
       .tab {
         padding: 8px 16px;
@@ -133,8 +170,8 @@
         color: #999999;
       }
       .tab.active {
-        border-bottom: 2px solid #18a0fb;
-        color: #18a0fb;
+        border-bottom: 2px solid #4080FF;
+        color: #4080FF;
       }
       .tab-content {
         display: none;
@@ -143,7 +180,7 @@
         display: block;
       }
       .link {
-        color: #18a0fb;
+        color: #4080FF;
         text-decoration: none;
         cursor: pointer;
       }
@@ -160,6 +197,15 @@
         height: 24px;
         object-fit: contain;
       }
+      #port, #btn-connect {
+        height: 40px;
+      }
+      input:hover {
+        background-color: #5B5B5B;
+      }
+      #content-about .section:first-child {
+        margin-top: 16px;
+      }
     </style>
   </head>
   <body>
@@ -172,7 +218,7 @@
           />
         </div>
         <div class="header-text">
-          <h1>Cursor Talk To MasterGo Plugin</h1>
+          <h1>Cursor Talk To MSG Plugin</h1>
           <p>Connect MasterGo to Cursor AI using MCP</p>
         </div>
       </div>
@@ -185,12 +231,12 @@
       <div id="content-connection" class="tab-content active">
         <div class="section">
           <label for="port">WebSocket Server Port</label>
-          <div style="display: flex; gap: 8px">
+          <div style="display: flex; gap: 8px; align-items: center;">
             <input
               type="number"
               id="port"
-              placeholder="3055"
-              value="3055"
+              placeholder="9509"
+              value="9509"
               min="1024"
               max="65535"
             />
@@ -217,18 +263,28 @@
             AI-assisted design operations. created by
             <a
               class="link"
-              onclick="window.open(`https://github.com/sonnylazuardi`, '_blank')"
-              >Sonny</a
-            >
+              onclick="window.open(`https://github.com/luanluan-l`, '_blank')"
+              >Luan</a>
+            &amp;
+            <a
+              class="link"
+              onclick="window.open(`https://github.com/nooverfly`, '_blank')"
+              >overfly</a>
           </p>
           <p>Version: 1.0.0</p>
 
+          <p style="margin-top: 12px; color: #cccccc; font-size: 12px;">
+            <strong>Note:</strong> This plugin is modified based on
+            <a class="link" href="https://github.com/sonnylazuardi/cursor-talk-to-figma-mcp" target="_blank">cursor-talk-to-figma-mcp</a>,
+            originally created by @Sonny Lazuardi.
+          </p>
+
           <h2>How to Use</h2>
-          <ol>
+          <ul>
             <li>Make sure the MCP server is running in Cursor</li>
-            <li>Connect to the server using the port number (default: 3055)</li>
+            <li>Connect to the server using the port number (default: 9509)</li>
             <li>Once connected, you can interact with MasterGo through Cursor</li>
-          </ol>
+          </ul>
         </div>
       </div>
     </div>
@@ -238,7 +294,7 @@
       const state = {
         connected: false,
         socket: null,
-        serverPort: 3055,
+        serverPort: 9509,
         pendingRequests: new Map(),
         channel: null,
       };
@@ -438,7 +494,8 @@
                 
                 // 创建简单消息对象
                 const simpleMsg = {
-                  command: data.command
+                  command: data.command,
+                  id: data.id // 确保ID被传递
                 };
                 
                 // 添加参数
@@ -639,7 +696,7 @@
 
       // Connect to server
       connectButton.addEventListener("click", () => {
-        const port = parseInt(portInput.value, 10) || 3055;
+        const port = parseInt(portInput.value, 10) || 9509;
         updateConnectionStatus(false, "Connecting...");
         connectionStatus.className = "status info";
         connectToServer(port);
@@ -656,6 +713,7 @@
       window.onmessage = (event) => {
         const message = event.data.pluginMessage;
         if (!message) return;
+        console.log("接收到的消息是", message);
 
         switch (message.type) {
           case "connection-status":
@@ -668,6 +726,7 @@
             disconnectButton.click();
             break;
           case "command-result":
+            console.log("运行结果是", message.result);
             // Forward the result from plugin code back to WebSocket
             sendSuccessResponse(message.id, message.result);
             break;

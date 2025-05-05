@@ -5,7 +5,7 @@ import { Server, ServerWebSocket } from "bun";
  * 
  * 这个文件实现了一个基于WebSocket的聊天服务器，主要功能如下：
  * 
- * 1. 创建一个监听3055端口的WebSocket服务器
+ * 1. 创建一个监听9509端口的WebSocket服务器
  * 2. 实现了基于频道(channel)的聊天系统，允许用户加入特定频道进行交流
  * 3. 主要功能包括：
  *    - 客户端连接管理
@@ -66,7 +66,7 @@ function handleConnection(ws: ServerWebSocket<any>) {
 }
 
 const server = Bun.serve({
-  port: 3055,
+  port: 9509,
   fetch(req: Request, server: Server) {
     // Handle CORS preflight
     // 处理CORS预检请求

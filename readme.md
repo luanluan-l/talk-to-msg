@@ -1,14 +1,13 @@
-# Cursor Talk to Figma MCP
+# CCursor Talk To MSG Plugin MCP
 
-This project implements a Model Context Protocol (MCP) integration between Cursor AI and Figma, allowing Cursor to communicate with Figma for reading designs and modifying them programmatically.
+This project implements a Model Context Protocol (MCP) integration between Cursor AI and Mastergo, allowing Cursor to communicate with Master go for reading designs and modifying them programmatically.
 
-https://github.com/user-attachments/assets/129a14d2-ed73-470f-9a4c-2240b2a4885c
 
 ## Project Structure
 
-- `src/talk_to_figma_mcp/` - TypeScript MCP server for Figma integration
-- `src/cursor_mcp_plugin/` - Figma plugin for communicating with Cursor
-- `src/socket.ts` - WebSocket server that facilitates communication between the MCP server and Figma plugin
+- `src/talk_to_Mastergo_mcp/` - TypeScript MCP server for Mastergo integration
+- `src/cursor_mcp_plugin/` - Mastergo plugin for communicating with Cursor
+- `src/socket.ts` - WebSocket server that facilitates communication between the MCP server and Mastergo plugin
 
 ## Get Started
 
@@ -30,7 +29,7 @@ bun setup
 bun start
 ```
 
-4. Install [Figma Plugin](#figma-plugin)
+4. Install [Mastergo Plugin](#Mastergo-plugin)
 
 # Quick Video Tutorial
 
@@ -45,10 +44,10 @@ Add the server to your Cursor MCP configuration in `~/.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "TalkToFigma": {
+    "TalkToMastergo": {
       "command": "bun",
       "args": [
-        "/path/to/cursor-talk-to-figma-mcp/src/talk_to_figma_mcp/server.ts"
+        "/path/to/cursor-talk-to-Mastergo-mcp/src/talk_to_Mastergo_mcp/server.ts"
       ]
     }
   }
@@ -63,74 +62,82 @@ Start the WebSocket server:
 bun run src/socket.ts
 ```
 
-### Figma Plugin
+### Mastergo Plugin
 
-1. In Figma, go to Plugins > Development > New Plugin
+1. In Mastergo, go to Plugins > Development > New Plugin
 2. Choose "Link existing plugin"
 3. Select the `src/cursor_mcp_plugin/manifest.json` file
-4. The plugin should now be available in your Figma development plugins
+4. The plugin should now be available in your Mastergo development plugins
 
 ## Usage
 
 1. Start the WebSocket server
 2. Install the MCP server in Cursor
-3. Open Figma and run the Cursor MCP Plugin
+3. Open Mastergo and run the Cursor MCP Plugin
 4. Connect the plugin to the WebSocket server by joining a channel using `join_channel`
-5. Use Cursor to communicate with Figma using the MCP tools
+5. Use Cursor to communicate with Mastergo using the MCP tools
 
 ## MCP Tools
 
-The MCP server provides the following tools for interacting with Figma:
+#### Document & Node Info
+- `get_document_info`: Get detailed information about the current MasterGo document
+- `get_selection`: Get information about the current selection
+- `get_node_info`: Get detailed information about a specific node
 
-### Document & Selection
+#### Element Creation
+- `create_rectangle`: Create a rectangle
+- `create_frame`: Create a frame/artboard
+- `create_text`: Create a text node
+- `create_ellipse`: Create an ellipse
 
-- `get_document_info` - Get information about the current Figma document
-- `get_selection` - Get information about the current selection
-- `get_node_info` - Get detailed information about a specific node
+#### Node Modification
+- `set_fill_color`: Set the fill color of a node
+- `set_stroke_color`: Set the stroke color and weight of a node
+- `move_node`: Move a node
+- `resize_node`: Resize a node
+- `delete_node`: Delete a node
+- `set_corner_radius`: Set the corner radius
+- `set_text_content`: Set the text content
+- `set_font`: Set the font
+- `set_layout_mode`: Set the auto-layout mode
 
-### Creating Elements
+#### Components & Styles
+- `get_styles`: Get local styles
+- `get_team_components`: Get team components
+- `import_component_by_key`: Import a component by key
+- `import_component_set_by_key`: Import a component set by key
+- `import_style_by_key`: Import a style by key
+- `create_component_instance`: Create a component instance
+- `get_component_properties`: Get component properties
+- `set_component_properties`: Set component properties
+- `add_component_property`: Add a component property
+- `edit_component_property`: Edit a component property
+- `delete_component_property`: Delete a component property
+- `set_component_property_references`: Set component property references
+- `set_variant_properties`: Set variant properties
+- `get_variant_properties`: Get variant properties
 
-- `create_rectangle` - Create a new rectangle with position, size, and optional name
-- `create_frame` - Create a new frame with position, size, and optional name
-- `create_text` - Create a new text node with customizable font properties
+#### Node Tree Operations
+- `append_child`: Append a child node
+- `insert_child`: Insert a child node
+- `find_all`: Find all matching nodes
+- `find_one`: Find the first matching node
+- `find_children`: Find direct child nodes
+- `find_all_with_criteria`: Find all nodes by criteria
+- `get_children`: Get all direct children
 
-### Modifying text content
+#### Export & Advanced
+- `export_node_as_image`: Export a node as an image (PNG, JPG, SVG, PDF)
+- `execute_code`: Execute arbitrary JavaScript code in MasterGo (use with caution)
 
-- `set_text_content` - Set the text content of an existing text node
-
-### Styling
-
-- `set_fill_color` - Set the fill color of a node (RGBA)
-- `set_stroke_color` - Set the stroke color and weight of a node
-- `set_corner_radius` - Set the corner radius of a node with optional per-corner control
-
-### Layout & Organization
-
-- `move_node` - Move a node to a new position
-- `resize_node` - Resize a node with new dimensions
-- `delete_node` - Delete a node
-
-### Components & Styles
-
-- `get_styles` - Get information about local styles
-- `get_local_components` - Get information about local components
-- `get_team_components` - Get information about team components
-- `create_component_instance` - Create an instance of a component
-
-### Export & Advanced
-
-- `export_node_as_image` - Export a node as an image (PNG, JPG, SVG, or PDF)
-- `execute_figma_code` - Execute arbitrary JavaScript code in Figma (use with caution)
-
-### Connection Management
-
-- `join_channel` - Join a specific channel to communicate with Figma
+#### Connection Management
+- `join`: Join a channel
 
 ## Development
 
-### Building the Figma Plugin
+### Building the Mastergo Plugin
 
-1. Navigate to the Figma plugin directory:
+1. Navigate to the Mastergo plugin directory:
 
    ```
    cd src/cursor_mcp_plugin
@@ -140,7 +147,7 @@ The MCP server provides the following tools for interacting with Figma:
 
 ## Best Practices
 
-When working with the Figma MCP:
+When working with the Mastergo MCP:
 
 1. Always join a channel before sending commands
 2. Get document overview using `get_document_info` first
@@ -152,7 +159,3 @@ When working with the Figma MCP:
 5. Verify changes using `get_node_info`
 6. Use component instances when possible for consistency
 7. Handle errors appropriately as all commands can throw exceptions
-
-## License
-
-MIT

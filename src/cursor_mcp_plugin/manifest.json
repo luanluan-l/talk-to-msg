@@ -27,8 +27,8 @@
       "https://google.com"
     ],
     "devAllowedDomains": [
-      "http://localhost:3055",
-      "ws://localhost:3055"
+      "http://localhost:9509",
+      "ws://localhost:9509"
     ]
   },
   "documentAccess": "dynamic-page",

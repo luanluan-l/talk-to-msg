@@ -20,9 +20,9 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import WebSocket from 'ws';
 import { v4 as uuidv4 } from 'uuid';
+import fs from 'fs';
 
 // Define TypeScript interfaces for MasterGo responses
-// 定义MasterGo响应的TypeScript接口
 interface MasterGoResponse {
   id: string;
   result?: any;
@@ -30,7 +30,6 @@ interface MasterGoResponse {
 }
 
 // Custom logging functions that write to stderr instead of stdout to avoid being captured
-// 自定义日志函数，写入stderr而非stdout以避免被捕获
 const logger = {
   info: (message: string) => process.stderr.write(`[INFO] ${message}\n`),
   debug: (message: string) => process.stderr.write(`[DEBUG] ${message}\n`),
@@ -39,31 +38,30 @@ const logger = {
   log: (message: string) => process.stderr.write(`[LOG] ${message}\n`)
 };
 
-// 修改pendingRequest的类型声明，加入autoResolveEnabled选项
-interface PendingRequest {
+// WebSocket connection and request tracking
+let ws: WebSocket | null = null;
+const pendingRequests = new Map<string, {
   resolve: (value: unknown) => void;
-  reject: (reason?: any) => void;
+  reject: (reason: unknown) => void;
   timeout: NodeJS.Timeout;
-  autoResolveEnabled?: boolean; // 新增属性，表示是否启用自动解析
-}
+}>();
 
 // Track which channel each client is in
-// 跟踪每个客户端所在的频道
 let currentChannel: string | null = null;
 
 // Create MCP server
-// 创建MCP服务器
 const server = new McpServer({
   name: "TalkToMasterGo",
   version: "1.0.0",
 });
 
-// WebSocket连接和请求跟踪
-let ws: WebSocket | null = null;
-const pendingRequests = new Map<string, PendingRequest>();
+// Add command line argument parsing
+const args = process.argv.slice(2);
+const serverArg = args.find(arg => arg.startsWith('--server='));
+const serverUrl = serverArg ? serverArg.split('=')[1] : 'localhost';
+const WS_URL = serverUrl === 'localhost' ? `ws://${serverUrl}` : `wss://${serverUrl}`;
 
 // Document Info Tool
-// 文档信息工具
 server.tool(
   "get_document_info",
   "Get detailed information about the current MasterGo document",
@@ -75,7 +73,7 @@ server.tool(
         content: [
           {
             type: "text",
-            text: JSON.stringify(result, null, 2)
+            text: JSON.stringify(result)
           }
         ]
       };
@@ -93,7 +91,6 @@ server.tool(
 );
 
 // Selection Tool
-// 选择工具
 server.tool(
   "get_selection",
   "Get information about the current selection in MasterGo",
@@ -105,7 +102,7 @@ server.tool(
         content: [
           {
             type: "text",
-            text: JSON.stringify(result, null, 2)
+            text: JSON.stringify(result)
           }
         ]
       };
@@ -114,7 +111,7 @@ server.tool(
         content: [
           {
             type: "text",
-            text: `Error getting selection: ${error instanceof Error ? error.message : String(error)}` 
+            text: `Error getting selection: ${error instanceof Error ? error.message : String(error)}`
           }
         ]
       };
@@ -129,14 +126,14 @@ server.tool(
   {
     nodeId: z.string().describe("The ID of the node to get information about")
   },
-  async ({ nodeId }) => {
+  async ({ nodeId }: { nodeId: string }) => {
     try {
       const result = await sendCommandToMasterGo('get_node_info', { nodeId });
       return {
         content: [
           {
             type: "text",
-            text: JSON.stringify(result, null, 2)
+            text: JSON.stringify(result)
           }
         ]
       };
@@ -165,7 +162,7 @@ server.tool(
     name: z.string().optional().describe("Optional name for the rectangle"),
     parentId: z.string().optional().describe("Optional parent node ID to append the rectangle to")
   },
-  async ({ x, y, width, height, name, parentId }) => {
+  async ({ x, y, width, height, name, parentId }: { x: number; y: number; width: number; height: number; name?: string; parentId?: string }) => {
     try {
       const result = await sendCommandToMasterGo('create_rectangle', {
         x, y, width, height, name: name || 'Rectangle', parentId
@@ -184,6 +181,50 @@ server.tool(
           {
             type: "text",
             text: `Error creating rectangle: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// Create Ellipse Tool
+server.tool(
+  "create_ellipse",
+  "Create a new ellipse in MasterGo",
+  {
+    x: z.number().describe("X position"),
+    y: z.number().describe("Y position"),
+    width: z.number().describe("Width of the ellipse"),
+    height: z.number().describe("Height of the ellipse"),
+    name: z.string().optional().describe("Optional name for the ellipse"),
+    parentId: z.string().optional().describe("Optional parent node ID to append the ellipse to"),
+    fillColor: z.object({
+      r: z.number().min(0).max(1).describe("Red component (0-1)"),
+      g: z.number().min(0).max(1).describe("Green component (0-1)"),
+      b: z.number().min(0).max(1).describe("Blue component (0-1)"),
+      a: z.number().min(0).max(1).optional().describe("Alpha component (0-1)")
+    }).optional().describe("Fill color in RGBA format")
+  },
+  async ({ x, y, width, height, name, parentId, fillColor }) => {
+    try {
+      const result = await sendCommandToMasterGo('create_ellipse', {
+        x, y, width, height, name: name || 'Ellipse', parentId, fillColor
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Created ellipse "${JSON.stringify(result)}"`
+          }
+        ]
+      }
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error creating ellipse: ${error instanceof Error ? error.message : String(error)}`
           }
         ]
       };
@@ -454,7 +495,7 @@ server.tool(
   },
   async ({ nodeId }) => {
     try {
-      await sendCommandToMasterGo('delete_node', { nodeId });
+      const result = await sendCommandToMasterGo('delete_node', { nodeId });
       return {
         content: [
           {
@@ -469,6 +510,258 @@ server.tool(
           {
             type: "text",
             text: `Error deleting node: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// Append Child Node Tool
+server.tool(
+  "append_child",
+  "Append a child node to a parent node in MasterGo",
+  {
+    parentId: z.string().describe("The ID of the parent node to append to"),
+    childId: z.string().describe("The ID of the child node to append")
+  },
+  async ({ parentId, childId }) => {
+    try {
+      const result = await sendCommandToMasterGo('append_child', { parentId, childId });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Appended node ${childId} to parent ${parentId}`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error appending child: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// Insert Child Node Tool
+server.tool(
+  "insert_child",
+  "Insert a child node at a specific index in a parent node in MasterGo",
+  {
+    parentId: z.string().describe("The ID of the parent node to insert into"),
+    childId: z.string().describe("The ID of the child node to insert"),
+    index: z.number().int().min(0).describe("The index at which to insert the child")
+  },
+  async ({ parentId, childId, index }) => {
+    try {
+      const result = await sendCommandToMasterGo('insert_child', { parentId, childId, index });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Inserted node ${childId} into parent ${parentId} at index ${index}`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error inserting child: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// Find All Tool
+server.tool(
+  "find_all",
+  "Find all nodes matching a callback in the node tree starting from the given node",
+  {
+    nodeId: z.string().describe("The ID of the node to start searching from"),
+    nodeType: z.string().optional().describe("Optional node type to filter by (e.g., 'FRAME', 'TEXT', 'RECTANGLE', etc.)"),
+    name: z.string().optional().describe("Optional node name to filter by")
+  },
+  async ({ nodeId, nodeType, name }) => {
+    try {
+      const result = await sendCommandToMasterGo('find_all', { 
+        nodeId, 
+        criteria: {
+          nodeType,
+          name
+        }
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result)
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error finding nodes: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// Find One Tool
+server.tool(
+  "find_one",
+  "Find the first node matching a callback in the node tree starting from the given node",
+  {
+    nodeId: z.string().describe("The ID of the node to start searching from"),
+    nodeType: z.string().optional().describe("Optional node type to filter by (e.g., 'FRAME', 'TEXT', 'RECTANGLE', etc.)"),
+    name: z.string().optional().describe("Optional node name to filter by")
+  },
+  async ({ nodeId, nodeType, name }) => {
+    try {
+      const result = await sendCommandToMasterGo('find_one', { 
+        nodeId, 
+        criteria: {
+          nodeType,
+          name
+        }
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result)
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error finding node: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// Find Children Tool
+server.tool(
+  "find_children",
+  "Find all direct child nodes matching a callback",
+  {
+    nodeId: z.string().describe("The ID of the parent node"),
+    nodeType: z.string().optional().describe("Optional node type to filter by (e.g., 'FRAME', 'TEXT', 'RECTANGLE', etc.)"),
+    name: z.string().optional().describe("Optional node name to filter by")
+  },
+  async ({ nodeId, nodeType, name }) => {
+    try {
+      const result = await sendCommandToMasterGo('find_children', { 
+        nodeId, 
+        criteria: {
+          nodeType,
+          name
+        }
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result)
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error finding children: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// Find All With Criteria Tool
+server.tool(
+  "find_all_with_criteria",
+  "Find all nodes matching specific types within a node's subtree",
+  {
+    nodeId: z.string().describe("The ID of the node to start searching from"),
+    types: z.array(z.string()).describe("Array of node types to search for (e.g., ['FRAME', 'TEXT'])")
+  },
+  async ({ nodeId, types }) => {
+    try {
+      const result = await sendCommandToMasterGo('find_all_with_criteria', { 
+        nodeId, 
+        criteria: {
+          types
+        }
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result)
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error finding nodes with criteria: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// Get Children Tool
+server.tool(
+  "get_children",
+  "Get all direct children of a node",
+  {
+    nodeId: z.string().describe("The ID of the node to get children from")
+  },
+  async ({ nodeId }) => {
+    try {
+      const result = await sendCommandToMasterGo('get_children', { 
+        nodeId
+      });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result)
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error getting children: ${error instanceof Error ? error.message : String(error)}`
           }
         ]
       };
@@ -505,14 +798,14 @@ server.tool(
   }
 );
 
-// Get Local Components Tool
+// Get Team Components Tool
 server.tool(
-  "get_local_components",
-  "Get all local components from the MasterGo document",
+  "get_team_components",
+  "Get all team library components available in MasterGo",
   {},
   async () => {
     try {
-      const result = await sendCommandToMasterGo('get_local_components');
+      const result = await sendCommandToMasterGo('get_team_components');
       return {
         content: [
           {
@@ -526,7 +819,7 @@ server.tool(
         content: [
           {
             type: "text",
-            text: `Error getting local components: ${error instanceof Error ? error.message : String(error)}`
+            text: `Error getting team components: ${error instanceof Error ? error.message : String(error)}`
           }
         ]
       };
@@ -541,11 +834,15 @@ server.tool(
   {
     componentKey: z.string().describe("Key of the component to instantiate"),
     x: z.number().describe("X position"),
-    y: z.number().describe("Y position")
+    y: z.number().describe("Y position"),
+    parentId: z.string().optional().describe("Optional parent node ID to append the instance to")
   },
-  async ({ componentKey, x, y }) => {
+  async ({ componentKey, x, y, parentId }) => {
     try {
-      const result = await sendCommandToMasterGo('create_component_instance', { componentKey, x, y });
+      const params: any = { componentKey, x, y };
+      if (parentId) params.parentId = parentId;
+      
+      const result = await sendCommandToMasterGo('create_component_instance', params);
       const typedResult = result as { name: string, id: string };
       return {
         content: [
@@ -776,20 +1073,43 @@ type MasterGoCommand =
   | 'create_rectangle'
   | 'create_frame'
   | 'create_text'
+  | 'create_ellipse'
   | 'set_fill_color'
   | 'set_stroke_color'
   | 'move_node'
   | 'resize_node'
   | 'delete_node'
   | 'get_styles'
-  | 'get_local_components'
+  // | 'get_local_components'
   | 'get_team_components'
+  | 'import_component_by_key'
+  | 'import_component_set_by_key'
+  | 'import_style_by_key'
   | 'create_component_instance'
   | 'export_node_as_image'
   | 'execute_code'
   | 'join'
   | 'set_corner_radius'
-  | 'set_text_content';
+  | 'set_text_content'
+  | 'get_component_properties'
+  | 'set_component_properties'
+  | 'add_component_property'
+  | 'edit_component_property'
+  | 'delete_component_property'
+  | 'set_component_property_references'
+  | 'set_font'
+  // | 'load_font'
+  | 'set_variant_properties'
+  | 'get_variant_properties'
+  | 'append_child'
+  | 'insert_child'
+  | 'find_all'
+  | 'find_one'
+  | 'find_children'
+  | 'find_all_with_criteria'
+  | 'get_children'
+  | 'set_layout_mode'
+  | 'set_node_sizing_mode';
 
 // Helper function to process MasterGo node responses
 function processMasterGoNodeResponse(result: unknown): any {
@@ -816,15 +1136,16 @@ function processMasterGoNodeResponse(result: unknown): any {
 }
 
 // Simple function to connect to MasterGo WebSocket server
-function connectToMasterGo(port: number = 3055) {
+function connectToMasterGo(port: number = 9509) {
   // If already connected, do nothing
   if (ws && ws.readyState === WebSocket.OPEN) {
     logger.info('Already connected to MasterGo');
     return;
   }
 
-  logger.info(`Connecting to MasterGo socket server on port ${port}...`);
-  ws = new WebSocket(`ws://localhost:${port}`);
+  const wsUrl = serverUrl === 'localhost' ? `${WS_URL}:${port}` : WS_URL;
+  logger.info(`Connecting to MasterGo socket server at ${wsUrl}...`);
+  ws = new WebSocket(wsUrl);
 
   ws.on('open', () => {
     logger.info('Connected to MasterGo socket server');
@@ -938,51 +1259,22 @@ function sendCommandToMasterGo(command: MasterGoCommand, params: unknown = {}): 
       }
     };
 
-    // 简化响应机制 - 仅等待较短时间或完全不等待结果
-    if (['create_rectangle', 'create_frame', 'create_text', 'set_fill_color', 'set_stroke_color',
-         'move_node', 'resize_node', 'delete_node', 'set_corner_radius', 'set_text_content'].includes(command)) {
-      // 这些命令通常只需发送，不需要等待详细结果
-      // 减少超时时间
-      const shortTimeout = setTimeout(() => {
-        if (pendingRequests.has(id)) {
-          pendingRequests.delete(id);
-          // 短暂等待后自动解析，而不是拒绝
-          logger.info(`Auto-resolving ${command} request ${id} after short timeout`);
-          resolve({ success: true, autoResolved: true });
-        }
-      }, 2000); // 缩短为2秒
+    // Set timeout for request
+    const timeout = setTimeout(() => {
+      if (pendingRequests.has(id)) {
+        pendingRequests.delete(id);
+        logger.error(`Request ${id} to MasterGo timed out after 30 seconds`);
+        reject(new Error('Request to MasterGo timed out'));
+      }
+    }, 30000); // 30 second timeout
 
-      // 仍然保存在pendingRequests中，以防真的有响应回来
-      pendingRequests.set(id, { 
-        resolve, 
-        reject, 
-        timeout: shortTimeout as unknown as NodeJS.Timeout,
-        autoResolveEnabled: true 
-      });
-    } else {
-      // 查询类命令需要等待实际结果
-      const timeout = setTimeout(() => {
-        if (pendingRequests.has(id)) {
-          pendingRequests.delete(id);
-          logger.error(`Request ${id} to MasterGo timed out after 30 seconds`);
-          reject(new Error('Request to MasterGo timed out'));
-        }
-      }, 30000); // 保持30秒超时
+    // Store the promise callbacks to resolve/reject later
+    pendingRequests.set(id, { resolve, reject, timeout });
 
-      // 存储Promise回调以在后面解析/拒绝
-      pendingRequests.set(id, { resolve, reject, timeout: timeout as unknown as NodeJS.Timeout });
-    }
-
-    // 发送请求
+    // Send the request
     logger.info(`Sending command to MasterGo: ${command}`);
     logger.debug(`Request details: ${JSON.stringify(request)}`);
     ws.send(JSON.stringify(request));
-    
-    // 对于创建命令，立即返回成功消息给UI界面
-    if (['create_rectangle', 'create_frame', 'create_text'].includes(command)) {
-      // 立即通知UI操作已发送
-      logger.info(`Command ${command} sent successfully`);
-    }
   });
 }
 
@@ -1033,6 +1325,16 @@ server.tool(
   }
 );
 
+async function handleCommand(command, params) {
+  switch (command) {
+    case "get_document_info":
+      return await getDocumentInfo();
+    // 其他命令...
+    default:
+      throw new Error(`未知命令: ${command}`);
+  }
+}
+
 // Start the server
 async function main() {
   try {
@@ -1054,3 +1356,540 @@ main().catch(error => {
   logger.error(`Error starting MasterGoMCP server: ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);
 });
+
+// 添加导入组件工具
+server.tool(
+  "import_component_by_key",
+  "Import a component from team library by key, and include create instance. If the instance need to be appended to a parent node, please provide the parentId.",
+  {
+    ukey: z.string().describe("The unique key of the component to import"),
+    properties: z.object({}).optional().describe("Initial properties to set on the instance"),
+    x: z.number().optional().describe("X position for the created instance"),
+    y: z.number().optional().describe("Y position for the created instance"),
+    parentId: z.string().optional().describe("Optional parent node ID to append the instance to")
+  },
+  async ({ ukey, properties, x, y, parentId }) => {
+    try {
+      // logger.info(`导入组件: ${ukey}, 父节点: ${parentId}`);
+      const params: any = { ukey };
+      
+      // 添加可选参数
+      if (properties) params.properties = properties;
+      if (x !== undefined) params.x = x;
+      if (y !== undefined) params.y = y;
+      if (parentId) params.parentId = parentId;
+      
+      const result = await sendCommandToMasterGo('import_component_by_key', params);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2)
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error importing component: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// 添加导入组件集工具
+server.tool(
+  "import_component_set_by_key",
+  "Import a component set from team library by key",
+  {
+    ukey: z.string().describe("The unique key of the component set to import"),
+    parentId: z.string().optional().describe("Optional parent node ID to append the instance to")
+  },
+  async ({ ukey, parentId }) => {
+    try {
+      const params: any = { ukey };
+      if (parentId) params.parentId = parentId;
+      
+      const result = await sendCommandToMasterGo('import_component_set_by_key', params);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result)
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error importing component set: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// 添加导入样式工具
+server.tool(
+  "import_style_by_key",
+  "Import a style from team library by key",
+  {
+    ukey: z.string().describe("The unique key of the style to import"),
+    nodeId: z.string().optional().describe("Optional node ID to apply the style to")
+  },
+  async ({ ukey, nodeId }) => {
+    try {
+      const result = await sendCommandToMasterGo('import_style_by_key', { ukey, nodeId });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result)
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error importing style: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// 设置布局模式工具
+server.tool(
+  "set_layout_mode",
+  "Set the layout mode and wrap behavior of a frame in MasterGo",
+  {
+    nodeId: z.string().describe("The ID of the frame to modify"),
+    flexMode: z.enum(["NONE", "HORIZONTAL", "VERTICAL"]).describe("Layout mode for the frame"),
+    flexWrap: z.enum(["NO_WRAP", "WRAP"]).optional().describe("Whether the auto-layout frame wraps its children"),
+    itemSpacing: z.number().optional().describe("Distance between children in the primary axis"),
+    crossAxisSpacing: z.union([z.number(), z.null()]).optional().describe("Distance between lines when flexWrap is WRAP. Set to null to sync with itemSpacing"),
+    mainAxisAlignItems: z.enum(['FLEX_START', 'FLEX_END',  'CENTER', 'SPACING_BETWEEN']).optional().describe("Determine the alignment of the child nodes of the automatic layout container on the main axis"),
+    crossAxisAlignItems: z.enum(['FLEX_START', 'FLEX_END',  'CENTER']).optional().describe("Counter axis alignmentDetermine the alignment of the child nodes of the automatic layout container on the cross axis"),
+    crossAxisAlignContent: z.enum(["AUTO", "SPACE_BETWEEN"]).optional().describe("Determines how rows are distributed in a WRAP layout"),
+    paddingTop: z.number().optional().describe("Top padding for auto-layout frame"),
+    paddingRight: z.number().optional().describe("Right padding for auto-layout frame"),
+    paddingBottom: z.number().optional().describe("Bottom padding for auto-layout frame"),
+    paddingLeft: z.number().optional().describe("Left padding for auto-layout frame"),
+    resizeToFit: z.boolean().optional().describe("When true, the node will resize to fit its content"),
+    // layoutSizingHorizontal: z.enum(["FIXED", "HUG", "FILL"]).optional().describe("Horizontal sizing mode (HUG for frames/text only, FILL for auto-layout children only)"),
+    // layoutSizingVertical: z.enum(["FIXED", "HUG", "FILL"]).optional().describe("Vertical sizing mode (HUG for frames/text only, FILL for auto-layout children only)"),
+    itemReverseZIndex: z.boolean().optional().describe("When true, the first layer will be drawn on top"),
+    strokesIncludedInLayout: z.boolean().optional().describe("When true, strokes are included in layout calculations (similar to CSS box-sizing: border-box)"),
+    childrenFlexGrow: z.record(z.string(), z.number().int().min(0).max(1)).optional().describe("子节点flexGrow设置, key为子节点id, value为0或1"),
+    childrenAlignSelf: z.record(z.string(), z.enum(["STRETCH", "INHERIT"])).optional().describe("子节点alignSelf设置, key为子节点id,value为STRETCH或INHERIT")
+  },
+  async ({ nodeId, flexMode, flexWrap, itemSpacing, crossAxisSpacing, mainAxisAlignItems, crossAxisAlignItems, crossAxisAlignContent, paddingTop, paddingRight, paddingBottom, paddingLeft, resizeToFit, itemReverseZIndex, strokesIncludedInLayout, childrenFlexGrow, childrenAlignSelf }) => {
+    try {
+      // 构建参数对象
+      const params: any = { 
+        nodeId, 
+        flexMode
+      };
+      
+      // 添加可选参数
+      if (flexWrap !== undefined) params.flexWrap = flexWrap;
+      if (itemSpacing !== undefined) params.itemSpacing = itemSpacing;
+      if (crossAxisSpacing !== undefined) params.crossAxisSpacing = crossAxisSpacing;
+      if (mainAxisAlignItems !== undefined) params.mainAxisAlignItems = mainAxisAlignItems;
+      if (crossAxisAlignItems !== undefined) params.crossAxisAlignItems = crossAxisAlignItems;
+      if (crossAxisAlignContent !== undefined) params.crossAxisAlignContent = crossAxisAlignContent;
+      if (paddingTop !== undefined) params.paddingTop = paddingTop;
+      if (paddingRight !== undefined) params.paddingRight = paddingRight;
+      if (paddingBottom !== undefined) params.paddingBottom = paddingBottom;
+      if (paddingLeft !== undefined) params.paddingLeft = paddingLeft;
+      if (resizeToFit !== undefined) params.resizeToFit = resizeToFit;
+      // if (layoutSizingHorizontal !== undefined) params.layoutSizingHorizontal = layoutSizingHorizontal;
+      // if (layoutSizingVertical !== undefined) params.layoutSizingVertical = layoutSizingVertical;
+      if (itemReverseZIndex !== undefined) params.itemReverseZIndex = itemReverseZIndex;
+      if (strokesIncludedInLayout !== undefined) params.strokesIncludedInLayout = strokesIncludedInLayout;
+      if (childrenFlexGrow !== undefined) params.childrenFlexGrow = childrenFlexGrow;
+      if (childrenAlignSelf !== undefined) params.childrenAlignSelf = childrenAlignSelf;
+      
+      const result = await sendCommandToMasterGo('set_layout_mode', params);
+      
+      return {
+        content: [
+          {
+            type: "text",
+            text: `已设置节点 ${nodeId} 的布局模式为 ${flexMode}，其他相关属性也已更新。`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `设置布局模式失败: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// 获取组件属性工具
+server.tool(
+  "get_component_properties",
+  "Get component properties from a component, instance, or node",
+  {
+    nodeId: z.string().describe("The ID of the node to get properties from")
+  },
+  async ({ nodeId }: { nodeId: string }) => {
+    try {
+      const result = await sendCommandToMasterGo('get_component_properties', { nodeId });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2)
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error getting component properties: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// 获取组件变体属性工具
+server.tool(
+  "get_variant_properties",
+  "Get variant properties from a component instance",
+  {
+    nodeId: z.string().describe("The ID of the instance to get variant properties from")
+  },
+  async ({ nodeId }: { nodeId: string }) => {
+    try {
+      const result = await sendCommandToMasterGo('get_variant_properties', { nodeId });
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(result, null, 2)
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error getting variant properties: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// 设置实例属性工具
+server.tool(
+  "set_component_properties",
+  "Set component properties from a component, instance, or node",
+  {
+    nodeId: z.string().describe("The ID of the instance or component or node to modify"),
+    properties: z.record(z.string(), z.union([z.string(), z.boolean()])).describe("Properties object with property IDs as keys and new values")
+  },
+  async ({ nodeId, properties }) => {
+    try {
+      const result = await sendCommandToMasterGo('set_component_properties', { nodeId, properties });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Updated instance properties: ${JSON.stringify(result, null, 2)}`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error setting instance properties: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// 设置组件变体属性工具
+// server.tool(
+//   "set_variant_properties",
+//   "Set variant properties on a component instance to switch its main component",
+//   {
+//     nodeId: z.string().describe("The ID of the instance to modify"),
+//     variantProperties: z.record(z.string(), z.string()).describe("Variant properties object with property names as keys and values")
+//   },
+//   async ({ nodeId, variantProperties }) => {
+//     try {
+//       const result = await sendCommandToMasterGo('set_variant_properties', { nodeId, variantProperties });
+//       return {
+//         content: [
+//           {
+//             type: "text",
+//             text: `Updated variant properties: ${JSON.stringify(result, null, 2)}`
+//           }
+//         ]
+//       };
+//     } catch (error) {
+//       return {
+//         content: [
+//           {
+//             type: "text",
+//             text: `Error setting variant properties: ${error instanceof Error ? error.message : String(error)}`
+//           }
+//         ]
+//       };
+//     }
+//   }
+// );
+
+// 设置组件属性引用工具
+server.tool(
+  "set_component_property_references",
+  "Set component property references on a node within a component",
+  {
+    nodeId: z.string().describe("The ID of the node to modify"),
+    references: z.object({
+      isVisible: z.string().optional().describe("Property ID to control visibility"),
+      characters: z.string().optional().describe("Property ID to control text content (for text layers)"),
+      mainComponent: z.string().optional().describe("Property ID to control main component (for instances)")
+    }).describe("References to component properties")
+  },
+  async ({ nodeId, references }) => {
+    try {
+      const result = await sendCommandToMasterGo('set_component_property_references', { nodeId, references });
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Set component property references: ${JSON.stringify(result, null, 2)}`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Error setting component property references: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+// 设置字体样式工具
+server.tool(
+  "set_font",
+  "Set the font style for a text node in MasterGo",
+  {
+    nodeId: z.string().describe("The ID of the text node to modify"),
+    fontName: z.union([
+      z.string().describe("Font name as string (will use Regular style)"),
+      z.object({
+        family: z.string().describe("Font family name"),
+        style: z.string().optional().describe("Font style (e.g., 'Regular', 'Bold', 'Italic')")
+      }).describe("Font name object with family and optional style")
+    ]).optional().describe("Font name object or string"),
+    fontSize: z.number().optional().describe("Font size to set"),
+    fontWeight: z.number().optional().describe("Font weight (e.g., 400 for Regular, 700 for Bold)"),
+    start: z.number().min(0).optional().describe("Start position in the text (default: 0)"),
+    end: z.number().optional().describe("End position in the text (default: text length)")
+  },
+  async ({ nodeId, fontName, fontSize, fontWeight, start, end }) => {
+    try {
+      // 处理fontName对象，确保正确传递
+      let processedFontName = fontName;
+      if (fontName && typeof fontName === 'object') {
+        processedFontName = {
+          family: fontName.family,
+          style: fontName.style || 'Regular'
+        };
+      }
+
+      const result = await sendCommandToMasterGo('set_font', { 
+        nodeId, 
+        fontName: processedFontName,
+        fontSize,
+        fontWeight,
+        start: start !== undefined ? start : 0,
+        end
+      });
+      
+      // 构建响应消息
+      let responseText = "设置样式成功：";
+      
+      // 处理字体信息
+      if (fontName) {
+        const fontInfo = typeof fontName === 'string' ? 
+          { family: fontName, style: 'Regular' } : 
+          { family: fontName.family, style: fontName.style || 'Regular' };
+        responseText += `字体=${fontInfo.family} ${fontInfo.style}`;
+      }
+      
+      // 处理字号信息
+      if (fontSize !== undefined) {
+        responseText += (fontName ? ", " : "") + `字号=${fontSize}`;
+      }
+      
+      // 处理字重信息
+      if (fontWeight !== undefined) {
+        responseText += ((fontName || fontSize !== undefined) ? ", " : "") + `字重=${fontWeight}`;
+      }
+      
+      // 处理范围信息
+      if (start !== undefined) {
+        const rangeText = end !== undefined ? 
+          `文本范围：[${start}, ${end})` : 
+          `文本范围：[${start}, 末尾)`;
+        responseText += `, ${rangeText}`;
+      }
+      
+      return {
+        content: [
+          {
+            type: "text",
+            text: responseText
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `设置字体样式失败: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
+
+//加载字体工具
+//   server.tool(
+//     "load_font",
+//   "Load a font for use in MasterGo",
+//   {
+//     fontName: z.union([
+//       z.string().describe("Font name as string (will use Regular style)"),
+//       z.object({
+//         family: z.string().describe("Font family name"),
+//         style: z.string().optional().describe("Font style (e.g., 'Regular', 'Bold', 'Italic')")
+//       }).describe("Font name object with family and optional style")
+//     ]).describe("Font name object or string")
+//   },
+//   async ({ fontName }) => {
+//     try {
+//       // 处理字体名称参数，确保正确传递对象
+//       let processedFontName;
+//       if (typeof fontName === 'string') {
+//         processedFontName = { family: fontName, style: 'Regular' };
+//       } else if (fontName && typeof fontName === 'object') {
+//         processedFontName = {
+//           family: fontName.family,
+//           style: fontName.style || 'Regular'
+//         };
+//       } else {
+//         throw new Error("无效的字体名称格式");
+//       }
+      
+//       const result = await sendCommandToMasterGo('load_font', { fontName: processedFontName });
+      
+//       return {
+//         content: [
+//           {
+//             type: "text",
+//             text: `字体加载成功：${processedFontName.family} ${processedFontName.style}`
+//           }
+//         ]
+//       };
+//     } catch (error) {
+//       return {
+//         content: [
+//           {
+//             type: "text",
+//             text: `加载字体失败: ${error instanceof Error ? error.message : String(error)}`
+//           }
+//         ]
+//       };
+//     }
+//   }
+// );
+
+// 添加设置子节点宽高模式工具
+server.tool(
+  "set_node_sizing_mode",
+  "设置自动布局容器的子节点的宽高模式(flexGrow、alignSelf)",
+  {
+    nodeId: z.string().describe("子节点的ID"),
+    parentId: z.string().describe("父容器节点的ID，必须是自动布局容器"),
+    flexGrow: z.number().int().min(0).max(1).optional().describe("是否充满主轴: 0表示固定宽度，1表示充满容器"),
+    // resizeToFit: z.boolean().optional().describe("When true, the node will resize to fit its children"),
+    alignSelf: z.enum(["STRETCH", "INHERIT"]).optional().describe("是否充满交叉轴: STRETCH表示撑满交叉轴，INHERIT表示固定高度")
+  },
+  async ({ nodeId, parentId, flexGrow, alignSelf }) => {
+    try {
+      const result = await sendCommandToMasterGo('set_node_sizing_mode', {
+        nodeId,
+        parentId,
+        flexGrow: flexGrow !== undefined ? flexGrow : undefined,
+        alignSelf: alignSelf || undefined,
+      });
+      
+      // 准备响应信息
+      let responseText = `已设置节点 ${nodeId} 的尺寸模式`;
+      if (flexGrow !== undefined) {
+        responseText += `，主轴模式：${flexGrow === 1 ? '充满容器' : '固定宽度'}`;
+      }
+      if (alignSelf) {
+        responseText += `，交叉轴模式：${alignSelf === 'STRETCH' ? '撑满交叉轴' : '固定高度'}`;
+      }
+      
+      return {
+        content: [
+          {
+            type: "text",
+            text: responseText
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `设置节点尺寸模式失败: ${error instanceof Error ? error.message : String(error)}`
+          }
+        ]
+      };
+    }
+  }
+);
