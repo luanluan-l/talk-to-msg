@@ -160,3 +160,6 @@ When working with the Mastergo MCP:
 5. Verify changes using `get_node_info`
 6. Use component instances when possible for consistency
 7. Handle errors appropriately as all commands can throw exceptions
+
+## License
+MIT
